@@ -90,6 +90,7 @@ def logging_experiments_comet(acc_score, y_test, preds):
     
     experiment.log_metric("Accuracy Score", acc_score)
     experiment.log_confusion_matrix(y_true=y_test, y_predicted=preds)
+    experiment.log_parameter("C", 2)
 
 
 if __name__ == "__main__":
