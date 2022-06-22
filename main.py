@@ -3,11 +3,6 @@ import xgboost as xgb
 import comet_ml
 from decouple import config
 
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.compose import ColumnTransformer
 
 API_KEY = config('COMET_API_KEY')
 
@@ -15,6 +10,15 @@ experiment = comet_ml.Experiment(
     api_key=API_KEY,
     project_name="tracking-machine-learning-models-using-comet-ml"
 )
+
+
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+
 
 def read_dataset(datapath='data/corrected_fame_dataset.csv'):
 
@@ -79,8 +83,17 @@ def train_model(X_train, X_test, y_train, y_test):
 
     acc_score = accuracy_score(y_test, preds)
 
-    return acc_score
+    return acc_score, preds
 
 
-def logging_experiments_comet():
-    pass
+def logging_experiments_comet(acc_score, y_test, preds):
+    
+    experiment.log_metric("Accuracy Score", acc_score)
+    experiment.log_confusion_matrix(y_true=y_test, y_predicted=preds)
+
+
+if __name__ == "__main__":
+    X, y = read_dataset()
+    X_train, X_test, y_train, y_test = create_pipeline(X, y)
+    acc_score, preds = train_model(X_train, X_test, y_train, y_test)
+    logging_experiments_comet(acc_score, y_test, preds)
