@@ -21,6 +21,62 @@ def preprocessing(datapath='data/corrected_fame_dataset.csv'):
 
     return X_train, X_val, y_train, y_val
 
+    from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+
+
+categorical_pipeline = Pipeline(
+    steps=[
+        ("oh-encode", OneHotEncoder(handle_unknown="ignore", sparse=False))
+    ]
+)
+
+numerical_pipeline = Pipeline(
+    steps=[
+        ("scale", StandardScaler())
+    ]
+)
+
+cat_cols = X.select_dtypes(exclude="number").columns
+num_cols = X.select_dtypes(include="number").columns
+
+
+full_processor = ColumnTransformer(
+    transformers=[
+        ("numeric", numerical_pipeline, num_cols),
+        ("categorical", categorical_pipeline, cat_cols)
+    ]
+)
+
+
+import xgboost as xgb
+
+xgb_cl = xgb.XGBClassifier()
+
+print(type(xgb_cl))
+
+
+X_processed = full_processor.fit_transform(X)
+y_processed = y.map({'Yes': 1, 'No': 0}).values.reshape(-1, 1)
+
+
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_processed, y_processed, stratify=y_processed, random_state=1121218
+)
+
+
+from sklearn.metrics import accuracy_score
+
+xgb_cl.fit(X_train, y_train)
+
+preds = xgb_cl.predict(X_test)
+
+accuracy_score(y_test, preds)
+
 
 
 def train_model(X_train, X_val, y_train, y_val):
