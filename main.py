@@ -1,13 +1,20 @@
 import pandas as pd
 import xgboost as xgb
+import comet_ml
+from decouple import config
+
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
 
+API_KEY = config('COMET_API_KEY')
 
+experiment = comet_ml.Experiment(
+    api_key=API_KEY,
+    project_name="tracking-machine-learning-models-using-comet-ml"
+)
 
 def read_dataset(datapath='data/corrected_fame_dataset.csv'):
 
@@ -73,3 +80,7 @@ def train_model(X_train, X_test, y_train, y_test):
     acc_score = accuracy_score(y_test, preds)
 
     return acc_score
+
+
+def logging_experiments_comet():
+    pass
