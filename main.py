@@ -14,7 +14,7 @@ experiment = comet_ml.Experiment(
 
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
@@ -82,13 +82,24 @@ def train_model(X_train, X_test, y_train, y_test):
     preds = xgb_cl.predict(X_test)
 
     acc_score = accuracy_score(y_test, preds)
+    precision = precision_score(y_test, preds)
+    recall  = recall_score(y_test, preds)
+    f1_score_ = f1_score(y_test, preds)
 
-    return acc_score, preds
+    return acc_score,  precision, recall, f1_score_, preds
 
 
-def logging_experiments_comet(acc_score, y_test, preds):
+def logging_experiments_comet(acc_score, precision, recall, f1_score_, y_test, preds):
+
+    metrics_result = {
+        "Accuracy Score" : acc_score,
+        "Precision" : precision,
+        "Recall" : recall,
+        "F1 Score" : f1_score_
+
+    }
     
-    experiment.log_metric("Accuracy Score", acc_score)
+    experiment._log_metrics(metrics_result)
     experiment.log_confusion_matrix(y_true=y_test, y_predicted=preds)
     experiment.log_parameter("C", 2)
 
@@ -96,5 +107,5 @@ def logging_experiments_comet(acc_score, y_test, preds):
 if __name__ == "__main__":
     X, y = read_dataset()
     X_train, X_test, y_train, y_test = create_pipeline(X, y)
-    acc_score, preds = train_model(X_train, X_test, y_train, y_test)
-    logging_experiments_comet(acc_score, y_test, preds)
+    acc_score, precision, recall, f1_score_, preds = train_model(X_train, X_test, y_train, y_test)
+    logging_experiments_comet(acc_score, precision, recall, f1_score_, y_test, preds)
