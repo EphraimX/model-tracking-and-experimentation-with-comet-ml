@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.utils import column_or_1d
 import xgboost as xgb
 import comet_ml
 from decouple import config
@@ -12,7 +13,7 @@ experiment = comet_ml.Experiment(
 )
 
 
-
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
@@ -62,7 +63,7 @@ def create_pipeline(X, y):
 
 
     X_processed = full_processor.fit_transform(X)
-    y_processed = y.map({'Yes': 1, 'No': 0}).values.reshape(-1, 1)
+    y_processed = column_or_1d(y.map({'Yes': 1, 'No': 0}).values.reshape(-1, 1), warn = True)
 
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -76,30 +77,48 @@ def create_pipeline(X, y):
 def train_model(X_train, X_test, y_train, y_test):
 
     xgb_cl = xgb.XGBClassifier()
+    log_cl = LogisticRegression()
 
     xgb_cl.fit(X_train, y_train)
+    log_cl.fit(X_train, y_train)
 
     preds = xgb_cl.predict(X_test)
+    log_cl_preds = log_cl.predict(X_test)
 
-    acc_score = accuracy_score(y_test, preds)
-    precision = precision_score(y_test, preds)
-    recall  = recall_score(y_test, preds)
-    f1_score_ = f1_score(y_test, preds)
-
-    return acc_score,  precision, recall, f1_score_, preds
+    acc_score_xgb = accuracy_score(y_test, preds)
+    precision_xgb = precision_score(y_test, preds)
+    recall_xgb  = recall_score(y_test, preds)
+    f1_score_xgb = f1_score(y_test, preds)
 
 
-def logging_experiments_comet(acc_score, precision, recall, f1_score_, y_test, preds):
+    acc_score_log_cl = accuracy_score(y_test, log_cl_preds)
+    precision_log_cl = precision_score(y_test, log_cl_preds)
+    recall_log_cl  = recall_score(y_test, log_cl_preds)
+    f1_score_log_cl = f1_score(y_test, log_cl_preds)
 
-    metrics_result = {
-        "Accuracy Score" : acc_score,
-        "Precision" : precision,
-        "Recall" : recall,
-        "F1 Score" : f1_score_
 
+    metrics_results = {
+
+        "Accuracy Score XGB" : acc_score_xgb,
+        "Precision XGB" : precision_xgb,
+        "Recall XGB" : recall_xgb,
+        "F1 Score XGB" : f1_score_xgb,
+
+        "Accuracy Score LOG CLF" : acc_score_log_cl,
+        "Precision LOG CLF" : precision_log_cl,
+        "Recall LOG CLF" : recall_log_cl,
+        "F1 Score LOG CLF" : f1_score_log_cl
     }
+    return metrics_results, preds
+
+
+def logging_experiments_comet(metrics_results, y_test, preds):
+
+    """
+    Looking at precision and recall
+    """
     
-    experiment._log_metrics(metrics_result)
+    experiment._log_metrics(metrics_results)
     experiment.log_confusion_matrix(y_true=y_test, y_predicted=preds)
     experiment.log_parameter("C", 2)
 
@@ -107,5 +126,5 @@ def logging_experiments_comet(acc_score, precision, recall, f1_score_, y_test, p
 if __name__ == "__main__":
     X, y = read_dataset()
     X_train, X_test, y_train, y_test = create_pipeline(X, y)
-    acc_score, precision, recall, f1_score_, preds = train_model(X_train, X_test, y_train, y_test)
-    logging_experiments_comet(acc_score, precision, recall, f1_score_, y_test, preds)
+    metrics_results, preds = train_model(X_train, X_test, y_train, y_test)
+    logging_experiments_comet(metrics_results, y_test, preds)
