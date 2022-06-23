@@ -13,12 +13,15 @@ experiment = comet_ml.Experiment(
 )
 
 
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+
 
 
 def read_dataset(datapath='data/corrected_fame_dataset.csv'):
@@ -63,7 +66,7 @@ def create_pipeline(X, y):
 
 
     X_processed = full_processor.fit_transform(X)
-    y_processed = column_or_1d(y.map({'Yes': 1, 'No': 0}).values.reshape(-1, 1), warn = True)
+    y_processed = y.map({'Yes': 1, 'No': 0}).values.ravel()
 
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -74,57 +77,47 @@ def create_pipeline(X, y):
 
 
 
-def train_model(X_train, X_test, y_train, y_test):
+def train_model(models, X_train, X_test, y_train, y_test):
 
-    xgb_cl = xgb.XGBClassifier()
-    log_cl = LogisticRegression()
+    metrics_results = {}
 
-    xgb_cl.fit(X_train, y_train)
-    log_cl.fit(X_train, y_train)
+    for count in range(len(models)):
 
-    preds = xgb_cl.predict(X_test)
-    log_cl_preds = log_cl.predict(X_test)
+        model_name = list(models.keys())[count]
+        model = list(models.values())[count]
 
-    acc_score_xgb = accuracy_score(y_test, preds)
-    precision_xgb = precision_score(y_test, preds)
-    recall_xgb  = recall_score(y_test, preds)
-    f1_score_xgb = f1_score(y_test, preds)
+        model.fit(X_train, y_train)
+        model_prediction = model.predict(X_test)
 
+        metrics_results[f'Accuracy Score {model_name}'] = accuracy_score(y_test, model_prediction)
+        metrics_results[f'Precision Score {model_name}'] = precision_score(y_test, model_prediction)
+        metrics_results[f'Recall Score {model_name}'] = recall_score(y_test, model_prediction)
+        metrics_results[f'F1 Score {model_name}'] = f1_score(y_test, model_prediction)
 
-    acc_score_log_cl = accuracy_score(y_test, log_cl_preds)
-    precision_log_cl = precision_score(y_test, log_cl_preds)
-    recall_log_cl  = recall_score(y_test, log_cl_preds)
-    f1_score_log_cl = f1_score(y_test, log_cl_preds)
+    return metrics_results
 
 
-    metrics_results = {
-
-        "Accuracy Score XGB" : acc_score_xgb,
-        "Precision XGB" : precision_xgb,
-        "Recall XGB" : recall_xgb,
-        "F1 Score XGB" : f1_score_xgb,
-
-        "Accuracy Score LOG CLF" : acc_score_log_cl,
-        "Precision LOG CLF" : precision_log_cl,
-        "Recall LOG CLF" : recall_log_cl,
-        "F1 Score LOG CLF" : f1_score_log_cl
-    }
-    return metrics_results, preds
-
-
-def logging_experiments_comet(metrics_results, y_test, preds):
+def logging_experiments_comet(metrics_results, y_test):
 
     """
     Looking at precision and recall
     """
     
     experiment._log_metrics(metrics_results)
-    experiment.log_confusion_matrix(y_true=y_test, y_predicted=preds)
     experiment.log_parameter("C", 2)
 
 
 if __name__ == "__main__":
     X, y = read_dataset()
     X_train, X_test, y_train, y_test = create_pipeline(X, y)
-    metrics_results, preds = train_model(X_train, X_test, y_train, y_test)
-    logging_experiments_comet(metrics_results, y_test, preds)
+
+    models = {
+        "Logistic Regression" : LogisticRegression(),
+        "Decision Tree" : DecisionTreeClassifier(),
+        "Random Forest" : RandomForestClassifier(),
+        "Ada Boost" : AdaBoostClassifier(),
+        "XGBoost" : xgb.XGBClassifier()
+    }
+
+    metrics_results = train_model(models, X_train, X_test, y_train, y_test)
+    logging_experiments_comet(metrics_results, y_test)
